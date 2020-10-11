@@ -216,78 +216,83 @@ Expression *parseValue( FILE *source )
     return value;
 }
 
-Expression *parseTerm(FILE *source, Expression *lvalue, Token token){
+// To unget a token
+void ungetToken(Token token, FILE *source) {
+    
+    int tokenLength = strlen(token.tok);
+    for(int i = tokenLength - 1; i >= 0; i--) {
+        ungetc(token.tok[i], source);
+    }
+}
+
+// termTail -> * val termTail | / val termTail | epsilon
+Expression *parseTermTail(FILE* source, Expression* lvalue){
+    Token token = scanner(source);
     Expression *expr;
 
     switch(token.type){
         case MulOp:
-            //printf("MulOp!!\n");
-            expr = (Expression*)malloc(sizeof(Expression));
+            // * val termTail
+            expr = (Expression *)malloc( sizeof(Expression) );
             (expr->v).type = MulNode;
             (expr->v).val.op = Mul;
-            if(lvalue->rightOperand != NULL){
-                expr->leftOperand = lvalue->rightOperand;
-                expr->rightOperand = parseValue(source);
-                lvalue->rightOperand = expr;
-            }
-            else{
-                expr->leftOperand = lvalue;
-                expr->rightOperand = parseValue(source);
-            }
-            return expr;
+            expr->leftOperand = lvalue;
+            expr->rightOperand = parseValue(source);
+            return parseTermTail(source, expr);
         case DivOp:
-            //printf("MulOp!!\n");
-            expr = (Expression*)malloc(sizeof(Expression));
+            // / val termTail
+            expr = (Expression *)malloc( sizeof(Expression) );
             (expr->v).type = DivNode;
             (expr->v).val.op = Div;
-            if(lvalue->rightOperand != NULL){
-                expr->leftOperand = lvalue->rightOperand;
-                expr->rightOperand = parseValue(source);
-                lvalue->rightOperand = expr;
-            }
-            else{
-                expr->leftOperand = lvalue;
-                expr->rightOperand = parseValue(source);
-            }
-            return expr;
+            expr->leftOperand = lvalue;
+            expr->rightOperand = parseValue(source);
+            return parseTermTail(source, expr);
+        case PlusOp: case MinusOp: case Alphabet: case PrintOp: //epsilon
+            ungetToken(token, source);
+            return lvalue;
+        case EOFsymbol:
+            return lvalue;
         default:
-            printf("Syntax Error: Expect a numeric value or an identifier %s\n", token.tok);
+            printf("Syntax Error: In term Expect a operand but %s\n", token.tok);
             exit(1);
     }
 }
 
-Expression *parseExpressionTail( FILE *source, Expression *lvalue )
-{
+// term -> val termTail
+Expression *parseTerm(FILE *source){
+    Expression *val = parseValue(source); // val
+    return parseTermTail(source, val); // termTail
+}
+
+// exprterm -> + term exprtail | - term exprtail | epsilon
+Expression *parseExpressionTail(FILE *source, Expression *lvalue){
     Token token = scanner(source);
     Expression *expr;
 
     switch(token.type){
         case PlusOp:
+            // + term exprtail
             expr = (Expression *)malloc( sizeof(Expression) );
             (expr->v).type = PlusNode;
             (expr->v).val.op = Plus;
             expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
+            expr->rightOperand = parseTerm(source);
             return parseExpressionTail(source, expr);
         case MinusOp:
+            // - term exprtail
             expr = (Expression *)malloc( sizeof(Expression) );
             (expr->v).type = MinusNode;
             (expr->v).val.op = Minus;
             expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
+            expr->rightOperand = parseTerm(source);
             return parseExpressionTail(source, expr);
-        case MulOp:
-        case DivOp:
-            expr = parseTerm(source, lvalue, token);
-            return parseExpressionTail(source, lvalue);
-        case Alphabet:
-        case PrintOp:
-            ungetc(token.tok[0], source);
+        case MulOp: case DivOp: case Alphabet: case PrintOp: // epsilon
+            ungetToken(token, source);
             return lvalue;
         case EOFsymbol:
             return lvalue;
         default:
-            printf("Syntax Error: Expect a numeric value or an identifier %s\n", token.tok);
+            printf("Syntax Error: In expression Expect a operand but %s\n", token.tok);
             exit(1);
     }
 }
@@ -296,43 +301,12 @@ Expression *parseExpressionTail( FILE *source, Expression *lvalue )
     expr -> term exprtail
     exprtail -> + term exprtail | - term exprtail | epsilon
     term -> val termtail
-    termtail -> * val term | / val term | epsilon
+    termtail -> * val termtail | / val termtail | epsilon
     val -> INTEGER | FLOAT | id
 */
-Expression *parseExpression( FILE *source, Expression *lvalue )
-{
-    Token token = scanner(source);
-    Expression *expr;
-
-    switch(token.type){
-        case PlusOp:
-            expr = (Expression *)malloc( sizeof(Expression) );
-            (expr->v).type = PlusNode;
-            (expr->v).val.op = Plus;
-            expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
-            return parseExpressionTail(source, expr);
-        case MinusOp:
-            expr = (Expression *)malloc( sizeof(Expression) );
-            (expr->v).type = MinusNode;
-            (expr->v).val.op = Minus;
-            expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
-            return parseExpressionTail(source, expr);
-        case MulOp:
-        case DivOp:
-            expr = parseTerm(source, lvalue, token);
-            return parseExpressionTail(source, expr);
-        case Alphabet:
-        case PrintOp:
-            ungetc(token.tok[0], source);
-            return NULL;
-        case EOFsymbol:
-            return NULL;
-        default:
-            printf("Syntax Error: Expect a numeric value or an identifier %s\n", token.tok);
-            exit(1);
-    }
+Expression *parseExpression( FILE *source, Expression *lvalue ){
+    Expression *expr = parseTerm(source); // term
+    return parseExpressionTail(source, expr); // exprtail
 }
 
 Statement parseStatement( FILE *source, Token token )
@@ -344,7 +318,6 @@ Statement parseStatement( FILE *source, Token token )
         case Alphabet:
             next_token = scanner(source);
             if(next_token.type == AssignmentOp){
-                value = parseValue(source);
                 expr = parseExpression(source, value);
                 printf("##########");
                 print_expr(expr);
@@ -788,5 +761,5 @@ void test_parser( FILE *source )
         }
         stmts = stmts->rest;
     }
-
 }
+
