@@ -95,7 +95,6 @@ Token scanner( FILE *source )
 
         while( isspace(c) ){
             c = fgetc(source);
-            printf("char %d\n", c);
         }
         if( isdigit(c) )
             return getNumericToken(source, c);
