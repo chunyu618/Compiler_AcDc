@@ -23,10 +23,15 @@ int main( int argc, char *argv[] )
             exit(2);
         }
         else{
+            printf("parsing...\n");
             program = parser(source);
+            printf("fclosing...\n");
             fclose(source);
+            printf("building...\n");
             symtab = build(program);
+            printf("checking...\n");
             check(&program, &symtab);
+            printf("generating...\n");
             gencode(program, target);
         }
     }
@@ -211,6 +216,46 @@ Expression *parseValue( FILE *source )
     return value;
 }
 
+Expression *parseTerm(FILE *source, Expression *lvalue, Token token){
+    Expression *expr;
+
+    switch(token.type){
+        case MulOp:
+            //printf("MulOp!!\n");
+            expr = (Expression*)malloc(sizeof(Expression));
+            (expr->v).type = MulNode;
+            (expr->v).val.op = Mul;
+            if(lvalue->rightOperand != NULL){
+                expr->leftOperand = lvalue->rightOperand;
+                expr->rightOperand = parseValue(source);
+                lvalue->rightOperand = expr;
+            }
+            else{
+                expr->leftOperand = lvalue;
+                expr->rightOperand = parseValue(source);
+            }
+            return expr;
+        case DivOp:
+            //printf("MulOp!!\n");
+            expr = (Expression*)malloc(sizeof(Expression));
+            (expr->v).type = DivNode;
+            (expr->v).val.op = Div;
+            if(lvalue->rightOperand != NULL){
+                expr->leftOperand = lvalue->rightOperand;
+                expr->rightOperand = parseValue(source);
+                lvalue->rightOperand = expr;
+            }
+            else{
+                expr->leftOperand = lvalue;
+                expr->rightOperand = parseValue(source);
+            }
+            return expr;
+        default:
+            printf("Syntax Error: Expect a numeric value or an identifier %s\n", token.tok);
+            exit(1);
+    }
+}
+
 Expression *parseExpressionTail( FILE *source, Expression *lvalue )
 {
     Token token = scanner(source);
@@ -231,6 +276,10 @@ Expression *parseExpressionTail( FILE *source, Expression *lvalue )
             expr->leftOperand = lvalue;
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
+        case MulOp:
+        case DivOp:
+            expr = parseTerm(source, lvalue, token);
+            return parseExpressionTail(source, lvalue);
         case Alphabet:
         case PrintOp:
             ungetc(token.tok[0], source);
@@ -243,6 +292,13 @@ Expression *parseExpressionTail( FILE *source, Expression *lvalue )
     }
 }
 
+/*
+    expr -> term exprtail
+    exprtail -> + term exprtail | - term exprtail | epsilon
+    term -> val termtail
+    termtail -> * val term | / val term | epsilon
+    val -> INTEGER | FLOAT | id
+*/
 Expression *parseExpression( FILE *source, Expression *lvalue )
 {
     Token token = scanner(source);
@@ -262,6 +318,10 @@ Expression *parseExpression( FILE *source, Expression *lvalue )
             (expr->v).val.op = Minus;
             expr->leftOperand = lvalue;
             expr->rightOperand = parseValue(source);
+            return parseExpressionTail(source, expr);
+        case MulOp:
+        case DivOp:
+            expr = parseTerm(source, lvalue, token);
             return parseExpressionTail(source, expr);
         case Alphabet:
         case PrintOp:
@@ -286,6 +346,9 @@ Statement parseStatement( FILE *source, Token token )
             if(next_token.type == AssignmentOp){
                 value = parseValue(source);
                 expr = parseExpression(source, value);
+                printf("##########");
+                print_expr(expr);
+                printf("##########\n");
                 return makeAssignmentNode(token.tok[0], value, expr);
             }
             else{
@@ -497,11 +560,11 @@ DataType lookup_table( SymbolTable *table, char c )
 void checkexpression( Expression * expr, SymbolTable * table )
 {
     char c;
+    //print_expr(expr);
     if(expr->leftOperand == NULL && expr->rightOperand == NULL){
         switch(expr->v.type){
             case Identifier:
                 c = expr->v.val.id;
-                printf("identifier : %c\n",c);
                 expr->type = lookup_table(table, c);
                 break;
             case IntConst:
@@ -572,6 +635,12 @@ void fprint_op( FILE *target, ValueType op )
             break;
         case PlusNode:
             fprintf(target,"+\n");
+            break;
+        case MulNode:
+            fprintf(target,"*\n");
+            break;
+        case DivNode:
+            fprintf(target,"/\n");
             break;
         default:
             fprintf(target,"Error in fprintf_op ValueType = %d\n",op);
