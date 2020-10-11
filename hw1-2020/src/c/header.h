@@ -14,7 +14,7 @@
 *******************************************************************************************************************************************/
 
 typedef enum TokenType { FloatDeclaration, IntegerDeclaration, PrintOp, AssignmentOp, PlusOp, MinusOp,
-             MulOp, DivOp, Alphabet, IntValue, FloatValue, EOFsymbol } TokenType;
+             MulOp, DivOp, Alphabet, IntValue, FloatValue, EOFsymbol, leftParen, rightParen} TokenType;
 typedef enum DataType { Int, Float, Notype }DataType;
 typedef enum StmtType { Print, Assignment } StmtType;
 typedef enum ValueType { Identifier, IntConst, FloatConst, PlusNode, MinusNode, MulNode, DivNode, IntToFloatConvertNode } ValueType;
@@ -119,9 +119,11 @@ Declarations *makeDeclarationTree( Declaration decl, Declarations *decls );
 Declaration parseDeclaration( FILE *source, Token token );
 Declarations *parseDeclarations( FILE *source );
 Expression *parseValue( FILE *source );
-Expression *parseExpressionTail( FILE *source, Expression *lvalue );
-Expression *parseExpression( FILE *source, Expression *lvalue );
-Statement makeAssignmentNode( char id, Expression *v, Expression *expr_tail );
+Expression *parseExpressionTail( FILE *source, Expression *lvalue);
+Expression *parseExpression( FILE *source);
+Expression *parseTerm(FILE *source);
+Expression *parseTermTail(FILE *source, Expression *lvalue);
+Statement makeAssignmentNode( char id, Expression *expr_tail );
 Statement makePrintNode( char id );
 Statements *makeStatementTree( Statement stmt, Statements *stmts );
 Statement parseStatement( FILE *source, Token token );
