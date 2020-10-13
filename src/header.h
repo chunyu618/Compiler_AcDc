@@ -12,7 +12,8 @@
                    Note that IntToFloatConvertNode to represent the type coercion may appear after finishing type checking. 			  
 	   Operation : Specify all arithematic expression, including +, - , *, / and type coercion.
 *******************************************************************************************************************************************/
-
+#define MAX_SYMBOL 64
+#define MAX_ID_LENGTH 1025
 typedef enum TokenType { FloatDeclaration, IntegerDeclaration, PrintOp, AssignmentOp, PlusOp, MinusOp,
              MulOp, DivOp, Alphabet, IntValue, FloatValue, EOFsymbol, leftParen, rightParen} TokenType;
 typedef enum DataType { Int, Float, Notype }DataType;
@@ -30,7 +31,7 @@ typedef enum Operation { Plus, Minus, Mul, Div, Assign, IntToFloatConvert } Oper
 /* For scanner */
 typedef struct Token{
     TokenType type;
-    char tok[1025];
+    char tok[MAX_ID_LENGTH];
 }Token;
 
 /*** The following are nodes of the AST. ***/
@@ -38,7 +39,7 @@ typedef struct Token{
 /* For decl production or say one declaration statement */
 typedef struct Declaration{
     DataType type;
-    char name;
+    char name[MAX_ID_LENGTH];
 }Declaration;
 
 /* 
@@ -56,7 +57,7 @@ typedef struct Declarations{
 typedef struct Value{
     ValueType type;
     union{
-        char id;                   /* if the node represent the access of the identifier */
+        char id[MAX_ID_LENGTH];    /* if the node represent the access of the identifier */
         Operation op;              /* store +, -, *, /, =, type_convert */
         int ivalue;                /* for integer constant in the expression */
         float fvalue;              /* for float constant */
@@ -79,7 +80,7 @@ typedef struct Expression{
 
 /* For one assignment statement */
 typedef struct AssignmentStatement{
-    char id;
+    char id[MAX_ID_LENGTH];
     Expression *expr;
     DataType type;      /* For type checking to store the type of all expression on the right. */
 }AssignmentStatement;
@@ -89,7 +90,7 @@ typedef struct AssignmentStatement{
 typedef struct Statement{
     StmtType type;
     union{
-        char variable;              /* print statement */
+        char variable[MAX_ID_LENGTH];              /* print statement */
         AssignmentStatement assign;
     }stmt;
 }Statement;
@@ -108,7 +109,10 @@ typedef struct Program{
 
 /* For building the symbol table */
 typedef struct SymbolTable{
-    DataType table[26];
+    DataType table[MAX_SYMBOL];
+    char id[MAX_SYMBOL][MAX_ID_LENGTH];
+    int valid[MAX_SYMBOL];
+    int numberOfSymbol;
 } SymbolTable;
 
 
@@ -123,25 +127,25 @@ Expression *parseExpressionTail( FILE *source, Expression *lvalue);
 Expression *parseExpression( FILE *source);
 Expression *parseTerm(FILE *source);
 Expression *parseTermTail(FILE *source, Expression *lvalue);
-Statement makeAssignmentNode( char id, Expression *expr_tail );
-Statement makePrintNode( char id );
+Statement makeAssignmentNode( char *id, Expression *expr_tail );
+Statement makePrintNode( char *id );
 Statements *makeStatementTree( Statement stmt, Statements *stmts );
 Statement parseStatement( FILE *source, Token token );
 Statements *parseStatements( FILE * source );
 Program parser( FILE *source );
 void InitializeTable( SymbolTable *table );
-void add_table( SymbolTable *table, char c, DataType t );
+void add_table( SymbolTable *table, char *c, DataType type);
 SymbolTable build( Program program );
-void convertType( Expression * old, DataType type );
+void convertType( Expression *old, DataType type );
 DataType generalize( Expression *left, Expression *right );
-DataType lookup_table( SymbolTable *table, char c );
-void checkexpression( Expression * expr, SymbolTable * table );
-void checkstmt( Statement *stmt, SymbolTable * table );
-void check( Program *program, SymbolTable * table);
+DataType lookup_table( SymbolTable *table, char *c);
+void checkexpression( Expression *expr, SymbolTable *table );
+void checkstmt( Statement *stmt, SymbolTable *table );
+void check( Program *program, SymbolTable *table);
 void fprint_op( FILE *target, ValueType op );
 void fprint_expr( FILE *target, Expression *expr );
 void gencode( Program prog, FILE * target );
-
+void ungetToken(Token token, FILE *source);
 void print_expr( Expression *expr );
 void test_parser( FILE *source );
 
