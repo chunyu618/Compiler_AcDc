@@ -218,6 +218,7 @@ Expression *parseValue( FILE *source )
             break;
         case leftParen:
             numOfParen++;
+            free(value); // To free value because we haven't used it.
             return parseExpression(source);
         default:
             printf("Syntax Error: Expect Identifier or a Number %s\n", token.tok);
@@ -239,25 +240,25 @@ void ungetToken(Token token, FILE *source) {
 // termTail -> * val termTail | / val termTail | epsilon
 Expression *parseTermTail(FILE* source, Expression* lvalue){
     Token token = scanner(source);
-    Expression *expr;
+    Expression *term;
 
     switch(token.type){
         case MulOp:
             // * val termTail
-            expr = (Expression *)malloc( sizeof(Expression) );
-            (expr->v).type = MulNode;
-            (expr->v).val.op = Mul;
-            expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
-            return parseTermTail(source, expr);
+            term = (Expression *)malloc( sizeof(Expression) );
+            (term->v).type = MulNode;
+            (term->v).val.op = Mul;
+            term->leftOperand = lvalue;
+            term->rightOperand = parseValue(source);
+            return parseTermTail(source, term);
         case DivOp:
             // / val termTail
-            expr = (Expression *)malloc( sizeof(Expression) );
-            (expr->v).type = DivNode;
-            (expr->v).val.op = Div;
-            expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
-            return parseTermTail(source, expr);
+            term = (Expression *)malloc( sizeof(Expression) );
+            (term->v).type = DivNode;
+            (term->v).val.op = Div;
+            term->leftOperand = lvalue;
+            term->rightOperand = parseValue(source);
+            return parseTermTail(source, term);
         case PlusOp: case MinusOp: case Alphabet: case PrintOp: case rightParen: //epsilon
             ungetToken(token, source);
             return lvalue;
@@ -319,8 +320,8 @@ Expression *parseExpressionTail(FILE *source, Expression *lvalue){
     val -> INTEGER | FLOAT | id | (expr)
 */
 Expression *parseExpression( FILE *source){
-    Expression *expr = parseTerm(source); // term
-    return parseExpressionTail(source, expr); // exprtail
+    Expression *term = parseTerm(source); // term
+    return parseExpressionTail(source, term); // exprtail
 }
 
 Statement parseStatement( FILE *source, Token token )
