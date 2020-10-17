@@ -34,7 +34,7 @@ int main( int argc, char *argv[] )
             printf("checking...\n");
             check(&program, &symtab);
             printf("generating...\n");
-            gencode(program, target);
+            gencode(program, target, &symtab);
         }
     }
     else{
@@ -71,7 +71,7 @@ Token getNumericToken( FILE *source, char c )
     c = fgetc(source);
     if( !isdigit(c) ){
         ungetc(c, source);
-        printf("Expect a digit : %c\n", c);
+        printf("Error: expect a digit but get: %c\n", c);
         exit(1);
     }
 
@@ -88,41 +88,48 @@ Token getNumericToken( FILE *source, char c )
 
 Token scanner( FILE *source )
 {
-    printf("incoming...\n");
     char c;
     Token token;
 
     while( !feof(source) ){
+        // Get first char
         c = fgetc(source);
-        printf("char is %c\n", c);
         while( isspace(c) ){
+            // Keep getting char until it's not a space char
             c = fgetc(source);
         }
-        if( isdigit(c) )
+        if( isdigit(c) ){
+            // If c is a number, we assume this token is a number.
             return getNumericToken(source, c);
+        }
 
         int tokenLength = 0;
-        do{
+        if(isalpha(c) || c == '_'){
+            // If c begins with alphabet or '_', we assume it is a variable.
+            do{
+                token.tok[tokenLength] = c;
+                tokenLength++;            
+                c = fgetc(source);
+            }while(isalpha(c) || isdigit(c) || c == '_'); // Parse char until it's not a digit, alphabet or '_'.
+            ungetc(c, source);
+        }
+        else{
             token.tok[tokenLength] = c;
-            tokenLength++;            
-            c = fgetc(source);
-            printf("%d %c ", tokenLength, c);
-        }while(isalpha(c) || isdigit(c) || c == '_');
-        ungetc(c, source);
-        printf("\n");
+            tokenLength++; 
+        }
+
         token.tok[tokenLength] = '\0';
         token.type = Alphabet; // Default type is Alphabet
-        printf("length = %d, token is %s\n", tokenLength, token.tok); 
+        
         if(tokenLength == 1){
             c = token.tok[0];
-            printf("c is %c\n", c);
+            //printf("c is %c ASCII is %d\n", c, c);
             if( islower(c) ){
                 if( c == 'f' )
                     token.type = FloatDeclaration;
                 else if( c == 'i' )
                     token.type = IntegerDeclaration;
                 else if( c == 'p' ){
-                    printf("lalala\n");
                     token.type = PrintOp;
                 }    
                 return token;
@@ -155,12 +162,11 @@ Token scanner( FILE *source )
                     token.tok[0] = '\0';
                     return token;
                 default:
-                    printf("Invalid character : %c\n", c);
+                    printf("Error: invalid character : %c\n", c);
                     exit(1);
             }
         }
         else{
-            printf("scanner token %s\n", token.tok);
             return token;
         }
     }
@@ -197,7 +203,6 @@ Declaration parseDeclaration( FILE *source, Token token )
 Declarations *parseDeclarations( FILE *source )
 {
     Token token = scanner(source);
-    printf("Decl token %s\n", token.tok);
     Declaration decl;
     Declarations *decls;
     switch(token.type){
@@ -350,20 +355,24 @@ Statement parseStatement( FILE *source, Token token )
 {
     Token next_token;
     Expression *expr;
-    printf("In statement token is %s\n", token.tok);
+    //printf("In statement token is %s\n", token.tok);
     switch(token.type){
         case Alphabet:
             next_token = scanner(source);
-            printf("Statement token is %s\n", next_token.tok);
+            //printf("Statement token is %s\n", next_token.tok);
             if(next_token.type == AssignmentOp){
                 expr = parseExpression(source);
                 if (numOfParen!= 0){
-                    printf("Syntax Error: number of left and right parentheses are different.");
+                    printf("Syntax Error: number of left and right parentheses are different.\n");
                     exit(1);
                 }
+                
+                /*
                 printf("##########");
                 print_expr(expr);
                 printf("##########\n");
+                */
+
                 return makeAssignmentNode(token.tok, expr);
             }
             else{
@@ -372,7 +381,7 @@ Statement parseStatement( FILE *source, Token token )
             }
         case PrintOp:
             next_token = scanner(source);
-            printf("PrintOp token is %s\n", next_token.tok);
+            //printf("PrintOp token is %s\n", next_token.tok);
             if(next_token.type == Alphabet)
                 return makePrintNode(next_token.tok);
             else{
@@ -390,7 +399,7 @@ Statements *parseStatements( FILE * source )
 {
 
     Token token = scanner(source);
-    printf("Statements token = %s\n", token.tok);
+    //printf("Statements token = %s\n", token.tok);
     Statement stmt;
     Statements *stmts;
 
@@ -446,15 +455,11 @@ Statement makeAssignmentNode( char *id, Expression *expr_tail )
 {
     Statement stmt;
     AssignmentStatement assign;
-    printf("123456789 %s\n", id);
     stmt.type = Assignment;
-    printf("----------%ld-------\n", strlen(id));
     strcpy(assign.id, id); 
     assign.id[strlen(id)] = '\0';
-    printf("%s\n", assign.id);
     assign.expr = expr_tail;
     stmt.stmt.assign = assign;
-    printf("stmt is %s\n", stmt.stmt.assign.id);
     return stmt;
 }
 
@@ -464,7 +469,6 @@ Statement makePrintNode( char *id )
     stmt.type = Print;
     strcpy(stmt.stmt.variable, id);
     stmt.stmt.variable[strlen(id)] = '\0';
-    printf("make print node\n");
     return stmt;
 }
 
@@ -483,7 +487,6 @@ Program parser( FILE *source )
     Program program;
 
     program.declarations = parseDeclarations(source);
-    printf("------\n");
     program.statements = parseStatements(source);
 
     return program;
@@ -553,14 +556,14 @@ void convertType( Expression * old, DataType type )
 {
     if(old->type == Float && type == Int){
         printf("error : can't convert float to integer\n");
-        return;
+        exit(1);
     }
     if(old->type == Int && type == Float){
         Expression *tmp = (Expression *)malloc( sizeof(Expression) );
-        if(old->v.type == Identifier)
-            printf("convert to float %s \n",old->v.val.id);
+        if((old->v).type == Identifier)
+            printf("convert to float %s \n", (old->v).val.id);
         else
-            printf("convert to float %d \n", old->v.val.ivalue);
+            printf("convert to float %d \n", (old->v).val.ivalue);
         tmp->v = old->v;
         tmp->leftOperand = old->leftOperand;
         tmp->rightOperand = old->rightOperand;
@@ -604,22 +607,124 @@ DataType lookup_table( SymbolTable *table, char *c )
     exit(1);
 }
 
+void constFolding(Expression *expr){
+    Expression *left = expr->leftOperand;
+    Expression *right = expr->rightOperand;
+    
+    if((left->v).type == FloatConst && (right->v).type == FloatConst){
+        float lValue = (left->v).val.fvalue;
+        float rValue = (right->v).val.fvalue;
+        switch((expr->v).type){
+            case PlusNode:
+                (expr->v).val.fvalue = lValue + rValue;
+                break;
+            case MinusNode:
+                (expr->v).val.fvalue = lValue - rValue;
+                break;
+            case MulNode:
+                (expr->v).val.fvalue = lValue * rValue;
+                break;
+            case DivNode:
+                (expr->v).val.fvalue = lValue / rValue;
+                break;
+            default:
+                printf("Constant folding error!!\n");
+                exit(1);
+        }
+        (expr->v).type = FloatConst;
+        expr->leftOperand = NULL;
+        expr->rightOperand = NULL;
+    }
+    else if((left->v).type == IntConst && (right->v).type == IntConst){
+        int lValue = (left->v).val.ivalue;
+        int rValue = (right->v).val.ivalue;
+        switch((expr->v).type){
+            case PlusNode:
+                (expr->v).val.ivalue = lValue + rValue;
+                break;
+            case MinusNode:
+                (expr->v).val.ivalue = lValue - rValue;
+                break;
+            case MulNode:
+                (expr->v).val.ivalue = lValue * rValue;
+                break;
+            case DivNode:
+                (expr->v).val.ivalue = lValue / rValue;
+                break;
+            default:
+                printf("Constant folding error!!\n");
+                exit(1);
+        }
+        (expr->v).type = IntConst;
+        expr->leftOperand = NULL;
+        expr->rightOperand = NULL;
+    }
+    else if((left->v).type == FloatConst && (right->v).type == IntToFloatConvertNode && (right->leftOperand->v).type == IntConst){
+        float lValue = (left->v).val.fvalue;
+        float rValue = (float)(right->leftOperand->v).val.ivalue;
+        switch((expr->v).type){
+            case PlusNode:
+                (expr->v).val.fvalue = lValue + rValue;
+                break;
+            case MinusNode:
+                (expr->v).val.fvalue = lValue - rValue;
+                break;
+            case MulNode:
+                (expr->v).val.fvalue = lValue * rValue;
+                break;
+            case DivNode:
+                (expr->v).val.fvalue = lValue / rValue;
+                break;
+            default:
+                printf("Constant folding error!!\n");
+                exit(1);
+        }
+        (expr->v).type = FloatConst;
+        expr->leftOperand = NULL;
+        expr->rightOperand = NULL;
+    }
+    else if((left->v).type == IntToFloatConvertNode && (right->v).type == FloatConst && (left->leftOperand->v).type == IntConst){
+        float lValue = (float)(left->leftOperand->v).val.ivalue;
+        float rValue = (right->v).val.fvalue;
+        switch((expr->v).type){
+            case PlusNode:
+                (expr->v).val.fvalue = lValue + rValue;
+                break;
+            case MinusNode:
+                (expr->v).val.fvalue = lValue - rValue;
+                break;
+            case MulNode:
+                (expr->v).val.fvalue = lValue * rValue;
+                break;
+            case DivNode:
+                (expr->v).val.fvalue = lValue / rValue;
+                break;
+            default:
+                printf("Constant folding error!!\n");
+                exit(1);
+        }
+        (expr->v).type = FloatConst;
+        expr->leftOperand = NULL;
+        expr->rightOperand = NULL;
+    }
+}
+
 void checkexpression( Expression * expr, SymbolTable * table )
 {
-    char *c;
+    char c[MAX_ID_LENGTH];
+    //printf("----------\n");
     //print_expr(expr);
+    //printf("----------\n");
     if(expr->leftOperand == NULL && expr->rightOperand == NULL){
-        switch(expr->v.type){
+        switch((expr->v).type){
             case Identifier:
-                strcpy(c, expr->v.val.id);
+                strcpy(c, (expr->v).val.id);
                 expr->type = lookup_table(table, c);
                 break;
             case IntConst:
-                printf("constant : int\n");
                 expr->type = Int;
                 break;
             case FloatConst:
-                printf("constant : float\n");
                 expr->type = Float;
                 break;
                 //case PlusNode: case MinusNode: case MulNode: case DivNode:
@@ -638,6 +743,9 @@ void checkexpression( Expression * expr, SymbolTable * table )
         convertType(left, type);//left->type = type;//converto
         convertType(right, type);//right->type = type;//converto
         expr->type = type;
+
+        // Constant folding.
+        constFolding(expr); 
     }
 }
 
@@ -650,6 +758,7 @@ void checkstmt( Statement *stmt, SymbolTable * table )
         stmt->stmt.assign.type = lookup_table(table, assign.id);
         if (assign.expr->type == Float && stmt->stmt.assign.type == Int) {
             printf("error : can't convert float to integer\n");
+            exit(1);
         } else {
             convertType(assign.expr, stmt->stmt.assign.type);
         }
@@ -698,19 +807,29 @@ void fprint_op( FILE *target, ValueType op )
     }
 }
 
-void fprint_expr( FILE *target, Expression *expr)
+void fprint_expr( FILE *target, Expression *expr, SymbolTable *table)
 {
 
     if(expr->leftOperand == NULL){
         switch( (expr->v).type ){
             case Identifier:
-                fprintf(target,"l%s\n",(expr->v).val.id);
+                fprintf(target,"l%c\n", assignRegister(table, (expr->v).val.id));
                 break;
             case IntConst:
-                fprintf(target,"%d\n",(expr->v).val.ivalue);
+                if((expr->v).val.ivalue >= 0){
+                    fprintf(target, "%d\n", (expr->v).val.ivalue);
+                }
+                else{
+                    fprintf(target, "_%d\n", -(expr->v).val.ivalue);
+                }
                 break;
             case FloatConst:
-                fprintf(target,"%f\n", (expr->v).val.fvalue);
+                if((expr->v).val.fvalue >= 0.0){
+                    fprintf(target, "%f\n", (expr->v).val.fvalue);
+                }
+                else{
+                    fprintf(target, "_%f\n", -(expr->v).val.fvalue);
+                }
                 break;
             default:
                 fprintf(target,"Error In fprint_left_expr. (expr->v).type=%d\n",(expr->v).type);
@@ -718,19 +837,29 @@ void fprint_expr( FILE *target, Expression *expr)
         }
     }
     else{
-        fprint_expr(target, expr->leftOperand);
+        fprint_expr(target, expr->leftOperand, table);
         if(expr->rightOperand == NULL){
             fprintf(target,"5k\n");
         }
         else{
             //	fprint_right_expr(expr->rightOperand);
-            fprint_expr(target, expr->rightOperand);
+            fprint_expr(target, expr->rightOperand, table);
             fprint_op(target, (expr->v).type);
         }
     }
 }
 
-void gencode(Program prog, FILE * target)
+char assignRegister(SymbolTable *table, char *c){
+    for(int i = 0; i < table->numberOfSymbol; i++){
+        if(strcmp(c, table->id[i]) == 0){
+            return 'a' + i;
+        }
+    }
+    printf("Code Generation Error: identifier %s is not declared\n", c);
+    exit(1);
+}
+
+void gencode(Program prog, FILE * target, SymbolTable *table)
 {
     Statements *stmts = prog.statements;
     Statement stmt;
@@ -739,11 +868,11 @@ void gencode(Program prog, FILE * target)
         stmt = stmts->first;
         switch(stmt.type){
             case Print:
-                fprintf(target,"l%s\n",stmt.stmt.variable);
+                fprintf(target,"l%c\n", assignRegister(table, stmt.stmt.variable));
                 fprintf(target,"p\n");
                 break;
             case Assignment:
-                fprint_expr(target, stmt.stmt.assign.expr);
+                fprint_expr(target, stmt.stmt.assign.expr, table);
                 /*
                    if(stmt.stmt.assign.type == Int){
                    fprintf(target,"0 k\n");
@@ -751,7 +880,7 @@ void gencode(Program prog, FILE * target)
                    else if(stmt.stmt.assign.type == Float){
                    fprintf(target,"5 k\n");
                    }*/
-                fprintf(target,"s%s\n",stmt.stmt.assign.id);
+                fprintf(target,"s%c\n", assignRegister(table, stmt.stmt.variable));
                 fprintf(target,"0 k\n");
                 break;
         }
