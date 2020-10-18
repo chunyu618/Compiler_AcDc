@@ -1,7 +1,27 @@
-i abcde
-i qwert
-i iiiii
-f fffff
-f ppppp
-abcde = 123
-p abcde
+i rgniwhgirwebghiewbvierwbw
+i nejvneriverv
+i wojhfqivbiehrbvierw__fnhjvewbvhiew
+i qohdjeirvbweihvbwjeihvbitrwb____vnewhjbvkjqbvreq
+i qihncsdjbcewilqbvew___evrhjwe_vewrhvewv____
+f i_w_i_p_wencjiewbvije
+f wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi
+f ervjberiver_Evreij_
+f z
+rgniwhgirwebghiewbvierwbw = 4
+nejvneriverv = 5
+wojhfqivbiehrbvierw__fnhjvewbvhiew = 6
+qohdjeirvbweihvbwjeihvbitrwb____vnewhjbvkjqbvreq = (rgniwhgirwebghiewbvierwbw * ((nejvneriverv + 5) * (wojhfqivbiehrbvierw__fnhjvewbvhiew + 6) / 2 * (nejvneriverv + 7 + (1 + 2)))) / (rgniwhgirwebghiewbvierwbw + nejvneriverv + wojhfqivbiehrbvierw__fnhjvewbvhiew) - (25 + rgniwhgirwebghiewbvierwbw + nejvneriverv * wojhfqivbiehrbvierw__fnhjvewbvhiew - (1 + 1))
+qihncsdjbcewilqbvew___evrhjwe_vewrhvewv____ = 183
+p qihncsdjbcewilqbvew___evrhjwe_vewrhvewv____
+p qohdjeirvbweihvbwjeihvbitrwb____vnewhjbvkjqbvreq
+wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi = 5.5
+ervjberiver_Evreij_ = 22.5
+z = (wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi + ervjberiver_Evreij_ * (wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi + ervjberiver_Evreij_))
+i_w_i_p_wencjiewbvije = 635.500000
+p i_w_i_p_wencjiewbvije
+p z
+z = wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi + ervjberiver_Evreij_ * 5 - (wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi + ervjberiver_Evreij_) * (wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi - ervjberiver_Evreij_) / (2 * wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi + ervjberiver_Evreij_) * (wvnkeorverV__ERVreveeibvrsAAAQIii__ipipi + 2 * ervjberiver_Evreij_)
+i_w_i_p_wencjiewbvije = 835.552246
+p i_w_i_p_wencjiewbvije
+p z
+
